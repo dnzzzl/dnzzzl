@@ -18,6 +18,7 @@ concurrency:
 defaults:
   run:
     shell: bash
+    working-directory: ./abcdenzel.xyz.hugo
 
 jobs:
   build:
@@ -70,7 +71,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./public
+          path: ./abcdenzel.xyz.hugo/public
 
   deploy:
     environment:
