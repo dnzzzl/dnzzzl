@@ -1,37 +1,76 @@
 <header class="headerWrapper">
     <div class="header">
-        <div>
+        <div class="header-left">
             <a class="terminal" href="{{ .Site.BaseURL | relLangURL }}">
                 <span>{{ .Site.Params.user }}@{{ .Site.Params.hostname }} ~ $</span>
             </a>
         </div>
-        <input class="side-menu" type="checkbox" id="side-menu">
-        <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
-        <nav class="headerLinks">
-            <ul>
-                {{ range .Site.Menus.header }}
-                <li>
-                    <a href="{{ .URL | absLangURL }}" title="{{ .Title }}" >
-                        ~/{{- .Name -}}
-                    </a>
-                </li>
-                {{ end }}
-            </ul>
-        </nav>
-          {{/* Language switcher */}}
-          <li class="lang-switcher-item">
-              {{ partial "language-switcher.html" . }}
-          </li>
+        <div class="header-right">
+            <input class="side-menu" type="checkbox" id="side-menu">
+            <label class="hamb" for="side-menu"><span class="hamb-line"></span></label>
+            <nav class="headerLinks">
+                <ul>
+                    {{ range .Site.Menus.header }}
+                    <li>
+                        <a href="{{ .URL | absLangURL }}" title="{{ .Title }}" >
+                            ~/{{- .Name -}}
+                        </a>
+                    </li>
+                    {{ end }}
+                </ul>
+            </nav>
+        </div>
+    </div>
+    <div class="language-switcher-row">
+        {{/* Language switcher */}}
+        {{ partial "language-switcher.html" . }}
     </div>
 </header>
 
 <style>
+.headerWrapper {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.header-left {
+    text-align: left;
+    flex: 0 0 auto;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+.language-switcher-row {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.5rem;
+}
+
 .lang-switcher-item {
     list-style: none;
 }
 
 .language-switcher {
-    display: inline-block;
+    display: block;
+    text-align: right;
+    padding-bottom: 5px;
+    margin-left: 0;
 }
 
 .language-switcher .lang-link {

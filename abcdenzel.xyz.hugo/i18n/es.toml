@@ -53,3 +53,6 @@ other = "404 - Página No Encontrada"
 
 [not_found_desc]
 other = "La página que buscas no existe o ha sido movida."
+
+[cv]
+other = "CV"

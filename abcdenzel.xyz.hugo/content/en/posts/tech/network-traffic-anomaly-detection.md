@@ -1,10 +1,11 @@
 +++
 date = '2025-11-26T11:26:35-04:00'
-draft = true
+draft = false 
 title = 'Network Traffic Anomaly Detection'
-tags = ['AI', 'python']
+tags = ['AI', 'python', 'algorithms & data structures']
 categories = ['tech', 'writeup']
 +++
+
 Setting up a lab for Network Traffic Analysis is one of those projects that has been floating around my list of things to do. It feels like such a useful and genuinely insightful look into the connections that a computer interacts with throughout every day.
 
 Being able to log, analyze, raise alerts and subsequently automate analysis and even take informed proactive action on a system based on the data; these are skills that feel infinitely valuable for any system exposed to the Internet or a Local Area Network.
@@ -26,30 +27,81 @@ And of course, before we have a forest, we need a tree:
 
 Binary trees are [data structures]() that organize data in a traversable, hierarchical way.
 Trees are composed of levels, also called depth, at each level we find nodes that branch off into two other nodes a level below it, in a way that the top node is the root and it branches off into two other nodes below.
+
 The relationship between these nodes is the logic behind the data structure, it represents a requirement that to reach a node below, a path using the correct branches needs to be followed.
+
+In the context of Isolation Forest, this becomes insightful: the path length itself tells us how many decisions were required to isolate a point.
+
 To traverse the binary tree an algorithm needs to evaluate the current node and the nodes below it, make a binary decision that gets it closer to its destination and, upon failure, be able to backtrack and choose a different path at a diverging point.
-However, binary path traversal is not our problem to solve(verification needed: what is the use for binary trees in isolation forest), the way we will use binary trees is...
+
+However, binary path traversal is not our problem to solve today, the way we will use binary trees is using random recursive partitioning to determine the anomalous points. This partinioning does what it says on the tin: The root node is the entire sample of the dataset, after a random feature is selected, the data is split between the min and max values, and this process is repeated recursively forming a tree structure. This happens until each branch has one node or a preconfigured max depth is reached.
 
 ## Learning
+
+Now that we understand how binary trees create isolation paths, let's see how Isolation Forest uses forests of these trees to detect anomalies in theory.
 
 ### Isolation forest algorithm
 
 The Isolation Forest approach to Anomaly Detection differs from previous methods that relied on profiling the normal activity via statistical analysis to then identify outliers, those methods produced higher rate of false positives, had non linear [time complexity]() limiting their application to smaller datasets and in simple terms they were just worse. See the references for sources.
+
 With the iForest apporach we rely on two characteristics: anomalies are few and different. which allows us to separate anomalous data points from others using less number of partitions.
 
-Partitions in this context can be explained by imagining a 2 dimensional box plot of our data points, where anomalies are few and far between, take for example a point to the far right because of this you could isolate one by drawing a line to the left of the anomalous point and it took 1 partition to isolate that point. Whereas to isolate a point that is surrounded by neighbors, you would have to draw four lines: above, below and one on each side.
+Partitions in this context can be explained by imagining a 2 dimensional scatter plot of our data points, where anomalies are few and far between, take for example a point to the far right, because of its position you could isolate it by drawing a line to the left of the anomalous point and it took 1 partition to isolate that point. Whereas to isolate a point that is surrounded by neighbors, you would have to draw four lines: above, below and one on each side.
 
-With higher dimensional data space the principle still stands, and each dimension represents one attribute of our data, precisely, each data point within each conn.log record.
+With higher dimensional data space the principle still stands, and each dimension represents one attribute of our data, precisely, each data point collected within each conn.log record.
+
+Lets go back to our binary tree data representation and consider this visually:
+
+```plaintext
+        [root]
+        /    \
+      [A]    [B]
+      / \    / \
+    [C] [D][E] [F]
+```
+
+To reach node D, you must: go left at root, then go right at A. This path (left → right) encodes a unique "address" for that data region. Anomalies, being isolated, get short addresses. Normal points, being clustered, require longer addresses to distinguish them from neighbors.
+
+#### Euler's Constant, Harmonic Series and the Comparability Problem
+
+Feel free to skip this section, however, I spent a little too long to gathering a mathematical intuition good enough to implement our algorithm, here is the math laid out simply:
+
+"_When you calculate path lengths in isolation trees, you have a comparability problem. If I build a tree with 100 samples and you build one with 10,000 samples, your paths will naturally be longer—not because your anomalies are less anomalous, but simply because there's more data to partition through_"
+
+The **expected path length** for a point in a binary search tree of n samples follows:
+
+```LaTeX
+c(n) = 2H(n-1) - (2(n-1)/n)
+```
+
+Where H(n) is the harmonic number (approximately ln(n) + 0.5772).
+This gives us a baseline: if a point's average path length across many trees is much shorter than c(n), it's anomalous.
+
+The anomaly score formula:
+
+```LaTeX
+s(x, n) = 2^(-E(h(x))/c(n))
+```
+
+Where:
+
+- E(h(x)) = average path length for point x across all trees
+- c(n) = normalization factor
+
+Score close to 1 → anomaly
+Score close to 0.5 → normal
+Score close to 0 → very deep in normal cluster
+
+## Conclusions
+
+Anomalies are few, so they don't cluster.
+Anomalies are different, so they lie in sparse regions.
+Therefore: Random partitions isolate anomalies quickly while normal points require many partitions.
+Path length becomes the anomaly signal.
 
 ## Implementation
 
-### Python script
-
-#### Defining Requirements
-
-Before we write any code, let's establish what we need and justify each dependency.
-
-##### Data Understanding
+### Connecting concepts to our Zeek conn.log
 
 Zeek's default configuration produces several log types. The most relevant for anomaly detection typically include:
 
@@ -62,11 +114,48 @@ For this project, we'll focus on conn.log as it provides information about each 
 
 Although dns.log is a dataset I would also like to explore since it could raise alerts for anomalous DNS resolutions useful for threat detection and hunting.
 
-##### Libraries
+Each connection record has multiple features forming a high-dimensional point:
+
+| **Feature**      | **Role in Isolation**                                       |
+|------------------|------------------------------------------------------------|
+| **Duration**     | Long-lived connections may isolate quickly.                |
+| **Orig Bytes**   | Unusual transfer sizes stand out.                          |
+| **Resp Bytes**   | Asymmetric transfers may be anomalous.                     |
+| **Orig Pkts**    | Anomalies in the number of packets exchanged can hint at unusual traffic patterns or potential attacks. Monitoring packet counts helps differentiate normal from suspicious behavior.            |
+| **Conn State**   | Unusual states (S0, REJ) may indicate issues.             |
+
+When we build an isolation tree, a random split on orig_bytes might immediately separate a data exfiltration attempt (gigabytes transferred) from normal browsing (kilobytes). That single split isolates the anomaly—hence a short path length, hence a high anomaly score.
+
+### Python script
+
+The theory was fun to read, but now I have to actually write the code.
+Before we write any code, let's establish what we need and justify each dependency.
+
+#### Libraries
 
 - Pandas: Which helps with loading data, preprocessing and column manipulation. Zeek logs are structured tabular data. Pandas provides intuitive DataFrame operations for loading JSON/CSV input files, handling missing values, and adding our anomaly score column.
 
 - Numpy: To handle numerical operations and array manipulation. Isolation Forest relies heavily on random sampling and tree traversal calculations. NumPy provides vectorized operations that are orders of magnitude faster than pure Python loops.
+
+- SciKitLearn: I might just cheat and use their Isolation Tree implementation for simplicity.
+
+#### Strategy
+
+First thing that comes to mind when I problem solve is Domain Modeling. The first thing I try to figure out is an account of all the moving pieces in our solution, their properties and actions.
+
+I have landed in having an `IsolationForest` class that holds `IsolationTree`s.
+
+- `IsolationTreeNode`:
+  - Information object
+  - props: data, right, left, feature_split,
+
+- `IsolationForest`:
+  - props: max_tree_height,
+  - methods: `fit(X: np.array, nt: int = 1)`,
+
+- `IsolationTree`:  
+  - props:
+  - methods: `calculate_anomaly`,`partition`, `calculate_avg`
 
 ### Zeek Integration
 
@@ -75,6 +164,3 @@ Although dns.log is a dataset I would also like to explore since it could raise 
 ## References
 
 [Isolation Forest Paper by Tony Liu et al](https://www.lamda.nju.edu.cn/publication/icdm08b.pdf)
-
-review network-traffic-anomaly-detection.md and comment on the structure, direction of the walkthrough and narrative voice of the text, this is my personal style its very easy to read and guides through a story of the motivation behind the project, you may make suggestions in these aspects too.
-Expand the technical details and correct what I get wrong, guide me to study or review any subjects that are relevant to successfully finish this project and with it its blogpost.

@@ -66,6 +66,10 @@ theme = "nightfall"
       name = "rss"
       weight = 6
       url = "/index.xml"
+    [[languages.en.menu.header]]
+      name = "CV"
+      weight = 7
+      url = "/DenzelMendez-Systems_Engineer_Resume.pdf"
 
   [languages.es]
     languageName = "Español"
@@ -98,6 +102,10 @@ theme = "nightfall"
       name = "rss"
       weight = 6
       url = "/index.xml"
+    [[languages.es.menu.header]]
+      name = "CV"
+      weight = 7
+      url = "/DenzelMendez-Desarrollador_Curriculum.pdf"
 
 # Pagination
 [pagination]
