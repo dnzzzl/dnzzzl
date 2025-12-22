@@ -10,7 +10,7 @@ defaultContentLanguageInSubdir = false
 [languages]
   [languages.en]
     languageCode = "en-US"
-    languageName = "English"
+    languageName = "Read in English 🇺🇸"
     weight = 1
     contentDir = "content/en"
     [languages.en.params]
@@ -52,7 +52,7 @@ defaultContentLanguageInSubdir = false
 
   [languages.es]
     languageCode = "es"
-    languageName = "Español"
+    languageName = "Leer en Español 🇩🇴"
     weight = 2
     contentDir = "content/es"
     [languages.es.params]
@@ -134,6 +134,7 @@ defaultContentLanguageInSubdir = false
 # PaperMod theme parameters (shared across languages)
 [params]
   env = "production"
+  displayFullLangName = true
 
   # Dark/Light mode: auto, light, dark
   defaultTheme = "auto"
